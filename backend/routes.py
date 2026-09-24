@@ -1,8 +1,11 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from .config import settings
-
+from ai_core.gemini_generator import (
+    GeminiGenerationError,
+    generate_legal_document,
+)
 
 router = APIRouter()
 
@@ -38,25 +41,19 @@ class GenerateRequest(BaseModel):
 
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
-    """
-    Check whether the LegalEase backend is running.
-    """
     return HealthResponse(
         status="healthy",
         application=settings.app_name,
-        version="2.0.0",
+        version="3.0.0",
     )
 
 
 @router.get("/")
 async def root():
-    """
-    Basic API information.
-    """
     return {
         "application": settings.app_name,
         "message": "LegalEase API is running",
-        "version": "2.0.0",
+        "version": "3.0.0",
         "docs": "/docs",
         "health": "/health",
     }
@@ -64,19 +61,28 @@ async def root():
 
 @router.post("/generate")
 async def generate_document(request: GenerateRequest):
-    """
-    Phase 2 placeholder for document generation.
+    try:
+        document = generate_legal_document(
+            document_type=request.document_type,
+            parties=request.parties,
+            terms=request.terms,
+            effective_date=request.effective_date,
+        )
 
-    Gemini integration will be added in Phase 3.
-    """
-    return {
-        "success": True,
-        "phase": 2,
-        "message": "Request received successfully. AI generation will be connected in Phase 3.",
-        "request": {
-            "document_type": request.document_type,
-            "parties": request.parties,
-            "terms": request.terms,
-            "effective_date": request.effective_date,
-        },
-    }
+        return {
+            "success": True,
+            "phase": 3,
+            "document": document,
+        }
+
+    except GeminiGenerationError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="AI document generation is currently unavailable.",
+        ) from exc
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while generating the document.",
+        ) from exc
