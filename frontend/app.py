@@ -4,6 +4,12 @@ import requests
 import streamlit as st
 from dotenv import load_dotenv
 
+from utils.document_export import (
+    create_docx,
+    create_pdf,
+    create_txt,
+)
+
 
 load_dotenv()
 
@@ -34,6 +40,7 @@ st.divider()
 
 st.markdown("### 📄 Document Details")
 
+
 document_type = st.selectbox(
     "Document Type",
     [
@@ -47,6 +54,7 @@ document_type = st.selectbox(
     ],
 )
 
+
 parties = st.text_area(
     "Parties",
     placeholder=(
@@ -56,6 +64,7 @@ parties = st.text_area(
     height=100,
 )
 
+
 terms = st.text_area(
     "Terms and Conditions",
     placeholder=(
@@ -64,6 +73,7 @@ terms = st.text_area(
     ),
     height=180,
 )
+
 
 effective_date = st.text_input(
     "Effective Date",
@@ -78,6 +88,7 @@ if st.button(
     "⚡ Generate Legal Document",
     use_container_width=True,
 ):
+
     if not parties.strip():
         st.error("Please enter the parties involved.")
 
@@ -88,6 +99,7 @@ if st.button(
         st.error("Please enter the effective date.")
 
     else:
+
         request_data = {
             "document_type": document_type,
             "parties": parties,
@@ -96,9 +108,11 @@ if st.button(
         }
 
         try:
+
             with st.spinner(
                 "Generating your legal document with AI..."
             ):
+
                 response = requests.post(
                     f"{BACKEND_URL}/generate",
                     json=request_data,
@@ -106,17 +120,25 @@ if st.button(
                 )
 
             if response.status_code == 200:
+
                 result = response.json()
-                document = result.get("document", "")
+
+                document = result.get(
+                    "document",
+                    "",
+                )
 
                 if document:
+
                     st.success(
                         "Legal document generated successfully!"
                     )
 
                     st.divider()
 
-                    st.markdown("### 📃 Generated Document")
+                    st.markdown(
+                        "### 📃 Generated Document"
+                    )
 
                     st.text_area(
                         "Document",
@@ -124,51 +146,116 @@ if st.button(
                         height=600,
                     )
 
-                    st.download_button(
-                        label="📥 Download Document",
-                        data=document,
-                        file_name="LegalEase_Legal_Document.txt",
-                        mime="text/plain",
-                        use_container_width=True,
+                    txt_file = create_txt(
+                        document
                     )
 
+                    docx_file = create_docx(
+                        document
+                    )
+
+                    pdf_file = create_pdf(
+                        document
+                    )
+
+                    st.markdown(
+                        "### 📥 Download Document"
+                    )
+
+                    col1, col2, col3 = st.columns(3)
+
+                    with col1:
+
+                        st.download_button(
+                            label="📄 Download TXT",
+                            data=txt_file,
+                            file_name=(
+                                "LegalEase_Legal_Document.txt"
+                            ),
+                            mime="text/plain",
+                            use_container_width=True,
+                        )
+
+                    with col2:
+
+                        st.download_button(
+                            label="📝 Download DOCX",
+                            data=docx_file,
+                            file_name=(
+                                "LegalEase_Legal_Document.docx"
+                            ),
+                            mime=(
+                                "application/vnd.openxmlformats-"
+                                "officedocument.wordprocessingml.document"
+                            ),
+                            use_container_width=True,
+                        )
+
+                    with col3:
+
+                        st.download_button(
+                            label="📕 Download PDF",
+                            data=pdf_file,
+                            file_name=(
+                                "LegalEase_Legal_Document.pdf"
+                            ),
+                            mime="application/pdf",
+                            use_container_width=True,
+                        )
+
                 else:
+
                     st.error(
                         "The backend returned an empty document."
                     )
 
             else:
+
                 try:
+
                     error_detail = response.json().get(
                         "detail",
                         "Unknown backend error.",
                     )
+
                 except ValueError:
+
                     error_detail = response.text
 
                 st.error(
-                    f"Document generation failed: {error_detail}"
+                    f"Document generation failed: "
+                    f"{error_detail}"
                 )
 
         except requests.exceptions.ConnectionError:
+
             st.error(
                 "Could not connect to the LegalEase backend. "
                 "Make sure the FastAPI server is running."
             )
 
         except requests.exceptions.Timeout:
+
             st.error(
                 "The AI generation request timed out. "
                 "Please try again."
             )
 
         except requests.exceptions.RequestException as exc:
+
             st.error(
                 f"Unable to contact the backend: {exc}"
             )
 
+        except Exception as exc:
+
+            st.error(
+                f"Unable to create the document files: {exc}"
+            )
+
 
 st.divider()
+
 
 st.caption(
     "⚠️ LegalEase generates AI-assisted document drafts. "
