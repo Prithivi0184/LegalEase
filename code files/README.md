@@ -2,8 +2,6 @@
 
 AI-Powered Legal Document Generator
 
-## Phase 1
-Project structure and Git configuration.
 
 ## Folders
 - ai_core
